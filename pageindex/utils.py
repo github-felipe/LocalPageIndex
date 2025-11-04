@@ -1,3 +1,5 @@
+from pyexpat.errors import messages
+
 import tiktoken
 import openai
 import logging
@@ -16,6 +18,9 @@ import logging
 import yaml
 from pathlib import Path
 from types import SimpleNamespace as config
+from ollama import chat
+from ollama import ChatResponse
+import re
 
 CHATGPT_API_KEY = os.getenv("CHATGPT_API_KEY")
 
@@ -26,7 +31,25 @@ def count_tokens(text, model=None):
     tokens = enc.encode(text)
     return len(tokens)
 
-def ChatGPT_API_with_finish_reason(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
+def Call_LLM(model, prompt, deep_think = False, chat_history=None):
+
+    if chat_history:
+        response: ChatResponse = chat(model=model,
+                                      messages=chat_history.append({"role": "user", "content": prompt}))
+    else:
+        response: ChatResponse = chat(model=model,
+                                      messages={"role": "user", "content": prompt})
+    response_text = response['message']['content']
+
+    think_texts = re.findall(r'<think>(.*?)</think>', response_text, flags=re.DOTALL)
+    think_texts = "\n\n".join(think_texts).strip()
+    clean_response = re.sub(r'<think>.*?</think>', '', response_text, flags=re.DOTALL).strip()
+
+    return clean_response if not deep_think else (clean_response, think_texts)
+
+def ChatGPT_API_with_finish_reason(model, prompt, is_local, api_key=CHATGPT_API_KEY, chat_history=None):
+    if is_local:
+        return Call_LLM(model, prompt, chat_history=chat_history), "finished"
     max_retries = 10
     client = openai.OpenAI(api_key=api_key)
     for i in range(max_retries):
@@ -58,7 +81,9 @@ def ChatGPT_API_with_finish_reason(model, prompt, api_key=CHATGPT_API_KEY, chat_
 
 
 
-def ChatGPT_API(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
+def ChatGPT_API(model, prompt, is_local, api_key=CHATGPT_API_KEY, chat_history=None):
+    if is_local:
+        return Call_LLM(model, prompt, chat_history=chat_history)
     max_retries = 10
     client = openai.OpenAI(api_key=api_key)
     for i in range(max_retries):
@@ -86,7 +111,9 @@ def ChatGPT_API(model, prompt, api_key=CHATGPT_API_KEY, chat_history=None):
                 return "Error"
             
 
-async def ChatGPT_API_async(model, prompt, api_key=CHATGPT_API_KEY):
+async def ChatGPT_API_async(model, prompt, is_local, api_key=CHATGPT_API_KEY):
+    if is_local:
+        return Call_LLM(model, prompt)
     max_retries = 10
     messages = [{"role": "user", "content": prompt}]
     for i in range(max_retries):
@@ -602,20 +629,20 @@ def add_node_text_with_labels(node, pdf_pages):
     return
 
 
-async def generate_node_summary(node, model=None):
+async def generate_node_summary(node, is_local, model=None):
     prompt = f"""You are given a part of a document, your task is to generate a description of the partial document about what are main points covered in the partial document.
 
     Partial Document Text: {node['text']}
     
     Directly return the description, do not include any other text.
     """
-    response = await ChatGPT_API_async(model, prompt)
+    response = await ChatGPT_API_async(model, prompt, is_local=is_local)
     return response
 
 
-async def generate_summaries_for_structure(structure, model=None):
+async def generate_summaries_for_structure(structure, is_local, model=None):
     nodes = structure_to_list(structure)
-    tasks = [generate_node_summary(node, model=model) for node in nodes]
+    tasks = [generate_node_summary(node, is_local=is_local, model=model) for node in nodes]
     summaries = await asyncio.gather(*tasks)
     
     for node, summary in zip(nodes, summaries):
@@ -646,7 +673,7 @@ def create_clean_structure_for_description(structure):
         return structure
 
 
-def generate_doc_description(structure, model=None):
+def generate_doc_description(structure, is_local, model=None):
     prompt = f"""Your are an expert in generating descriptions for a document.
     You are given a structure of a document. Your task is to generate a one-sentence description for the document, which makes it easy to distinguish the document from other documents.
         
@@ -654,7 +681,7 @@ def generate_doc_description(structure, model=None):
     
     Directly return the description, do not include any other text.
     """
-    response = ChatGPT_API(model, prompt)
+    response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     return response
 
 
