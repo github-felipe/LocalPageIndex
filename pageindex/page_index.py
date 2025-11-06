@@ -114,7 +114,7 @@ def toc_detector_single_page(content, is_local, model=None):
     Please note: abstract,summary, notation list, figure list, table list, etc. are not table of contents."""
 
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
-    print('response', response)
+    # print('response', response)
     json_content = extract_json(response)
     return json_content['toc_detected']
 
@@ -553,6 +553,7 @@ def generate_toc_init(part, is_local, model=None):
     response, finish_reason = ChatGPT_API_with_finish_reason(model=model, prompt=prompt, is_local=is_local)
 
     if finish_reason == 'finished':
+         print(response)
          return extract_json(response)
     else:
         raise Exception(f'finish reason: {finish_reason}')
