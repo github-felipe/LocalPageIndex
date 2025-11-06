@@ -18,20 +18,31 @@ async def check_title_appearance(item, page_list, is_local, start_index=1, model
     page_number = item['physical_index']
     page_text = page_list[page_number-start_index][0]
 
-    prompt = f"""
-    Your job is to check if the given section appears or starts in the given page_text.
+    prompt = f"""Your task: Check if the given section title appears or starts in the page text below.
 
-    Note: do fuzzy matching, ignore any space inconsistency in the page_text.
+Section title: {title}
 
-    The given section title is {title}.
-    The given page_text is {page_text}.
-    
-    Reply format:
-    {{
-        "thinking": <why do you think the section appears or starts in the page_text>
-        "answer": "yes or no" (yes if the section appears or starts in the page_text, no otherwise)
-    }}
-    Directly return the final JSON structure. Do not output anything else."""
+Page text: {page_text}
+
+Instructions:
+- Do fuzzy matching - ignore spaces and minor formatting differences
+- Answer "yes" if the section appears or starts in the page text
+- Answer "no" otherwise
+
+You MUST respond with ONLY a valid JSON object in this exact format (no extra text before or after):
+{{
+    "thinking": "your reasoning here",
+    "answer": "yes"
+}}
+
+OR
+
+{{
+    "thinking": "your reasoning here",
+    "answer": "no"
+}}
+
+Output only the JSON, nothing else:"""
 
     response = await ChatGPT_API_async(model=model, prompt=prompt, is_local=is_local)
     response = extract_json(response)
@@ -43,23 +54,31 @@ async def check_title_appearance(item, page_list, is_local, start_index=1, model
 
 
 async def check_title_appearance_in_start(title, page_text, is_local, model=None, logger=None):
-    prompt = f"""
-    You will be given the current section title and the current page_text.
-    Your job is to check if the current section starts in the beginning of the given page_text.
-    If there are other contents before the current section title, then the current section does not start in the beginning of the given page_text.
-    If the current section title is the first content in the given page_text, then the current section starts in the beginning of the given page_text.
+    prompt = f"""Your task: Check if the section title starts at the BEGINNING of the page text.
 
-    Note: do fuzzy matching, ignore any space inconsistency in the page_text.
+Section title: {title}
 
-    The given section title is {title}.
-    The given page_text is {page_text}.
-    
-    reply format:
-    {{
-        "thinking": <why do you think the section appears or starts in the page_text>
-        "start_begin": "yes or no" (yes if the section starts in the beginning of the page_text, no otherwise)
-    }}
-    Directly return the final JSON structure. Do not output anything else."""
+Page text: {page_text}
+
+Instructions:
+- Answer "yes" ONLY if the section title is the FIRST content in the page
+- Answer "no" if there is ANY other content before the section title
+- Do fuzzy matching - ignore spaces and minor formatting
+
+You MUST respond with ONLY a valid JSON object in this exact format (no extra text):
+{{
+    "thinking": "your reasoning here",
+    "start_begin": "yes"
+}}
+
+OR
+
+{{
+    "thinking": "your reasoning here",
+    "start_begin": "no"
+}}
+
+Output only the JSON:"""
 
     response = await ChatGPT_API_async(model=model, prompt=prompt, is_local=is_local)
     response = extract_json(response)
@@ -99,19 +118,28 @@ async def check_title_appearance_in_start_concurrent(structure, page_list, is_lo
 
 
 def toc_detector_single_page(content, is_local, model=None):
-    prompt = f"""
-    Your job is to detect if there is a table of content provided in the given text.
+    prompt = f"""Your task: Detect if there is a table of contents in the text below.
 
-    Given text: {content}
+Text: {content}
 
-    return the following JSON format:
-    {{
-        "thinking": <why do you think there is a table of content in the given text>
-        "toc_detected": "<yes or no>",
-    }}
+Important notes:
+- A table of contents lists document sections with page numbers
+- Abstract, summary, notation list, figure list, table list are NOT table of contents
 
-    Directly return the final JSON structure. Do not output anything else.
-    Please note: abstract,summary, notation list, figure list, table list, etc. are not table of contents."""
+You MUST respond with ONLY a valid JSON object in this exact format (no extra text):
+{{
+    "thinking": "your reasoning here",
+    "toc_detected": "yes"
+}}
+
+OR
+
+{{
+    "thinking": "your reasoning here",
+    "toc_detected": "no"
+}}
+
+Output only the JSON:"""
 
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     # print('response', response)
@@ -120,36 +148,60 @@ def toc_detector_single_page(content, is_local, model=None):
 
 
 def check_if_toc_extraction_is_complete(content, toc, is_local, model=None):
-    prompt = f"""
-    You are given a partial document  and a  table of contents.
-    Your job is to check if the  table of contents is complete, which it contains all the main sections in the partial document.
+    prompt = f"""Your task: Check if the table of contents is complete.
 
-    Reply format:
-    {{
-        "thinking": <why do you think the table of contents is complete or not>
-        "completed": "yes" or "no"
-    }}
-    Directly return the final JSON structure. Do not output anything else."""
+Document: {content}
 
-    prompt = prompt + '\n Document:\n' + content + '\n Table of contents:\n' + toc
+Table of contents: {toc}
+
+Instructions:
+- Answer "yes" if the table of contents contains ALL main sections from the document
+- Answer "no" if any main sections are missing
+
+You MUST respond with ONLY a valid JSON object in this exact format (no extra text):
+{{
+    "thinking": "your reasoning here",
+    "completed": "yes"
+}}
+
+OR
+
+{{
+    "thinking": "your reasoning here",
+    "completed": "no"
+}}
+
+Output only the JSON:"""
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     json_content = extract_json(response)
     return json_content['completed']
 
 
 def check_if_toc_transformation_is_complete(content, toc, is_local, model=None):
-    prompt = f"""
-    You are given a raw table of contents and a  table of contents.
-    Your job is to check if the  table of contents is complete.
+    prompt = f"""Your task: Check if the cleaned table of contents is complete compared to the raw version.
 
-    Reply format:
-    {{
-        "thinking": <why do you think the cleaned table of contents is complete or not>
-        "completed": "yes" or "no"
-    }}
-    Directly return the final JSON structure. Do not output anything else."""
+Raw table of contents: {content}
 
-    prompt = prompt + '\n Raw Table of contents:\n' + content + '\n Cleaned Table of contents:\n' + toc
+Cleaned table of contents: {toc}
+
+Instructions:
+- Answer "yes" if the cleaned version contains all sections from the raw version
+- Answer "no" if any sections are missing
+
+You MUST respond with ONLY a valid JSON object in this exact format (no extra text):
+{{
+    "thinking": "your reasoning here",
+    "completed": "yes"
+}}
+
+OR
+
+{{
+    "thinking": "your reasoning here",
+    "completed": "no"
+}}
+
+Output only the JSON:"""
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     json_content = extract_json(response)
     return json_content['completed']
@@ -195,19 +247,28 @@ def extract_toc_content(content, is_local, model=None):
 
 def detect_page_index(toc_content, is_local, model=None):
     print('start detect_page_index')
-    prompt = f"""
-    You will be given a table of contents.
+    prompt = f"""Your task: Detect if page numbers are present in the table of contents.
 
-    Your job is to detect if there are page numbers/indices given within the table of contents.
+Table of contents: {toc_content}
 
-    Given text: {toc_content}
+Instructions:
+- Answer "yes" if the table of contents includes page numbers or indices
+- Answer "no" if no page numbers are present
 
-    Reply format:
-    {{
-        "thinking": <why do you think there are page numbers/indices given within the table of contents>
-        "page_index_given_in_toc": "<yes or no>"
-    }}
-    Directly return the final JSON structure. Do not output anything else."""
+You MUST respond with ONLY a valid JSON object in this exact format (no extra text):
+{{
+    "thinking": "your reasoning here",
+    "page_index_given_in_toc": "yes"
+}}
+
+OR
+
+{{
+    "thinking": "your reasoning here",
+    "page_index_given_in_toc": "no"
+}}
+
+Output only the JSON:"""
 
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     json_content = extract_json(response)
@@ -234,28 +295,39 @@ def toc_extractor(page_list, toc_page_list, model, is_local):
 
 def toc_index_extractor(toc, content, is_local, model=None):
     print('start toc_index_extractor')
-    tob_extractor_prompt = """
-    You are given a table of contents in a json format and several pages of a document, your job is to add the physical_index to the table of contents in the json format.
+    tob_extractor_prompt = """Your task: Add physical_index tags to the table of contents JSON.
 
-    The provided pages contains tags like <physical_index_X> and <physical_index_X> to indicate the physical location of the page X.
+Input format:
+- Table of contents in JSON format
+- Document pages with tags like <physical_index_5> marking page 5 location
 
-    The structure variable is the numeric system which represents the index of the hierarchy section in the table of contents. For example, the first section has structure index 1, the first subsection has structure index 1.1, the second subsection has structure index 1.2, etc.
+Output format: You MUST output ONLY a valid JSON array with this exact structure:
 
-    The response should be in the following JSON format: 
+    The response should be in the following JSON format:
     [
         {
             "structure": <structure index, "x.x.x" or None> (string),
-            "title": <title of the section>,
+            "title": <title of the section or subsection>,
             "physical_index": "<physical_index_X>" (keep the format)
         },
         ...
     ]
 
-    Only add the physical_index to the sections that are in the provided pages.
-    If the section is not in the provided pages, do not add the physical_index to it.
-    Directly return the final JSON structure. Do not output anything else."""
+Important rules:
+1. ONLY add physical_index to sections found in the provided pages
+2. Keep physical_index in format: "<physical_index_X>"
+3. structure is the hierarchical number (e.g., "1", "1.1", "1.2.1") or null
+4. Output ONLY the JSON array, no extra text
 
-    prompt = tob_extractor_prompt + '\nTable of contents:\n' + str(toc) + '\nDocument pages:\n' + content
+Table of contents:
+{toc}
+
+Document pages:
+{content}
+
+Output the JSON array now:"""
+
+    prompt = tob_extractor_prompt.replace('{toc}', str(toc)).replace('{content}', content)
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     json_content = extract_json(response)    
     return json_content
@@ -268,7 +340,7 @@ def toc_transformer(toc_content, is_local, model=None):
 
     structure is the numeric system which represents the index of the hierarchy section in the table of contents. For example, the first section has structure index 1, the first subsection has structure index 1.1, the second subsection has structure index 1.2, etc.
 
-    The response should be in the following JSON format: 
+    The response should be in the following JSON array format: 
     {
     table_of_contents: [
         {
@@ -443,16 +515,15 @@ def page_list_to_group_text(page_contents, token_lengths, max_tokens=20000, over
     return subsets
 
 def add_page_number_to_toc(part, structure, is_local , model=None):
-    fill_prompt_seq = """
-    You are given an JSON structure of a document and a partial part of the document. Your task is to check if the title that is described in the structure is started in the partial given document.
+    fill_prompt_seq = """Your task: Check if section titles appear in the document and mark their physical_index.
 
-    The provided text contains tags like <physical_index_X> and <physical_index_X> to indicate the physical location of the page X. 
+Input:
+- JSON structure with section titles
+- Partial document with tags like <physical_index_5> marking page 5
 
-    If the full target section starts in the partial given document, insert the given JSON structure with the "start": "yes", and "start_index": "<physical_index_X>".
+Output format: You MUST output ONLY a valid JSON array with this exact structure:
 
-    If the full target section does not start in the partial given document, insert "start": "no",  "start_index": None.
-
-    The response should be in the following format. 
+    The response should be in the following format.
         [
             {
                 "structure": <structure index, "x.x.x" or None> (string),
@@ -461,11 +532,24 @@ def add_page_number_to_toc(part, structure, is_local , model=None):
                 "physical_index": "<physical_index_X> (keep the format)" or None
             },
             ...
-        ]    
-    The given structure contains the result of the previous part, you need to fill the result of the current part, do not change the previous result.
-    Directly return the final JSON structure. Do not output anything else."""
+        ]
 
-    prompt = fill_prompt_seq + f"\n\nCurrent Partial Document:\n{part}\n\nGiven Structure\n{json.dumps(structure, indent=2)}\n"
+Important rules:
+1. "start" = "yes" if the FULL section starts in this document part, else "no"
+2. "physical_index" = "<physical_index_X>" if starts here, else null
+3. Keep the format exactly as "<physical_index_X>"
+4. Do NOT change results from previous parts
+5. Output ONLY the JSON array, no extra text
+
+Current Partial Document:
+{part}
+
+Given Structure:
+{structure}
+
+Output the JSON array now:"""
+
+    prompt = fill_prompt_seq.replace('{part}', part).replace('{structure}', json.dumps(structure, indent=2))
     current_json_raw = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     json_result = extract_json(current_json_raw)
     
@@ -490,32 +574,40 @@ def remove_first_physical_index_section(text):
 ### add verify completeness
 def generate_toc_continue(toc_content, part, is_local, model="gpt-4o-2024-11-20"):
     print('start generate_toc_continue')
-    prompt = """
-    You are an expert in extracting hierarchical tree structure.
-    You are given a tree structure of the previous part and the text of the current part.
-    Your task is to continue the tree structure from the previous part to include the current part.
+    prompt = """Your task: Continue extracting the hierarchical structure from the current text part.
 
-    The structure variable is the numeric system which represents the index of the hierarchy section in the table of contents. For example, the first section has structure index 1, the first subsection has structure index 1.1, the second subsection has structure index 1.2, etc.
+Previous tree structure (for reference):
+{previous_structure}
 
-    For the title, you need to extract the original title from the text, only fix the space inconsistency.
+Current text with page markers:
+{current_text}
 
-    The provided text contains tags like <physical_index_X> and <physical_index_X> to indicate the start and end of page X. \
-    
-    For the physical_index, you need to extract the physical index of the start of the section from the text. Keep the <physical_index_X> format.
+Output format: You MUST output ONLY a valid JSON array with ADDITIONAL sections:
 
-    The response should be in the following format. 
-        [
-            {
-                "structure": <structure index, "x.x.x"> (string),
-                "title": <title of the section, keep the original title>,
-                "physical_index": "<physical_index_X> (keep the format)"
-            },
-            ...
-        ]    
+[
+    {
+        "structure": "3",
+        "title": "Next Section Title",
+        "physical_index": "<physical_index_15>"
+    },
+    {
+        "structure": "3.1",
+        "title": "Subsection Title",
+        "physical_index": "<physical_index_17>"
+    }
+]
 
-    Directly return the additional part of the final JSON structure. Do not output anything else."""
+Important rules:
+1. structure = hierarchical number (e.g., "1", "1.1", "1.2.1") as string
+2. title = original title from text (fix only spacing)
+3. physical_index = "<physical_index_X>" marking where section starts
+4. Text has tags like <physical_index_5> marking page 5 location
+5. Output ONLY NEW sections found in current text
+6. Output ONLY the JSON array, no extra text
 
-    prompt = prompt + '\nGiven text\n:' + part + '\nPrevious tree structure\n:' + json.dumps(toc_content, indent=2)
+Output the JSON array now:"""
+
+    prompt = prompt.replace('{current_text}', part).replace('{previous_structure}', json.dumps(toc_content, indent=2))
     response, finish_reason = ChatGPT_API_with_finish_reason(model=model, prompt=prompt, is_local=is_local)
     if finish_reason == 'finished':
         return extract_json(response)
@@ -525,35 +617,45 @@ def generate_toc_continue(toc_content, part, is_local, model="gpt-4o-2024-11-20"
 ### add verify completeness
 def generate_toc_init(part, is_local, model=None):
     print('start generate_toc_init')
-    prompt = """
-    You are an expert in extracting hierarchical tree structure, your task is to generate the tree structure of the document.
+    prompt = """Your task: Extract the hierarchical tree structure from the document.
 
-    The structure variable is the numeric system which represents the index of the hierarchy section in the table of contents. For example, the first section has structure index 1, the first subsection has structure index 1.1, the second subsection has structure index 1.2, etc.
+Input text with page markers:
+{input_text}
 
-    For the title, you need to extract the original title from the text, only fix the space inconsistency.
+Output format: You MUST output ONLY a valid JSON array with this exact structure:
 
-    The provided text contains tags like <physical_index_X> and <physical_index_X> to indicate the start and end of page X. 
+[
+    {
+        "structure": "1",
+        "title": "First Section Title",
+        "physical_index": "<physical_index_5>"
+    },
+    {
+        "structure": "1.1",
+        "title": "Subsection Title",
+        "physical_index": "<physical_index_7>"
+    },
+    {
+        "structure": "2",
+        "title": "Second Section Title",
+        "physical_index": "<physical_index_12>"
+    }
+]
 
-    For the physical_index, you need to extract the physical index of the start of the section from the text. Keep the <physical_index_X> format.
+Important rules:
+1. structure = hierarchical number (e.g., "1", "1.1", "1.2.1") as string
+2. title = original title from text (fix only spacing)
+3. physical_index = "<physical_index_X>" marking where section starts
+4. Text has tags like <physical_index_5> marking page 5 location
+5. Extract ALL sections and subsections in hierarchical order
+6. Output ONLY the JSON array, no extra text before or after
 
-    The response should be in the following format. 
-        [
-            {{
-                "structure": <structure index, "x.x.x"> (string),
-                "title": <title of the section, keep the original title>,
-                "physical_index": "<physical_index_X> (keep the format)"
-            }},
-            
-        ],
+Output the JSON array now:"""
 
-
-    Directly return the final JSON structure. Do not output anything else."""
-
-    prompt = prompt + '\nGiven text\n:' + part
+    prompt = prompt.replace('{input_text}', part)
     response, finish_reason = ChatGPT_API_with_finish_reason(model=model, prompt=prompt, is_local=is_local)
 
     if finish_reason == 'finished':
-         print(response)
          return extract_json(response)
     else:
         raise Exception(f'finish reason: {finish_reason}')
@@ -724,19 +826,31 @@ def check_toc(page_list, is_local, opt=None, logger=None):
 
 ################### fix incorrect toc #########################################################
 def single_toc_item_index_fixer(section_title, content, is_local, model="gpt-4o-2024-11-20"):
-    tob_extractor_prompt = """
-    You are given a section title and several pages of a document, your job is to find the physical index of the start page of the section in the partial document.
+    tob_extractor_prompt = """Your task: Find the physical index of the start page for this section.
 
-    The provided pages contains tags like <physical_index_X> and <physical_index_X> to indicate the physical location of the page X.
+Section title: {section_title}
 
-    Reply in a JSON format:
-    {
-        "thinking": <explain which page, started and closed by <physical_index_X>, contains the start of this section>,
-        "physical_index": "<physical_index_X>" (keep the format)
-    }
-    Directly return the final JSON structure. Do not output anything else."""
+Document pages with markers:
+{document_pages}
 
-    prompt = tob_extractor_prompt + '\nSection Title:\n' + str(section_title) + '\nDocument pages:\n' + content
+Instructions:
+- Look for the page containing the start of this section
+- Pages are marked with tags like <physical_index_5> for page 5
+
+Output format: You MUST output ONLY a valid JSON object:
+
+{{
+    "thinking": "The section starts in page X because...",
+    "physical_index": "<physical_index_5>"
+}}
+
+Important:
+- Keep physical_index in format: "<physical_index_X>"
+- Output ONLY the JSON object, no extra text
+
+Output the JSON now:"""
+
+    prompt = tob_extractor_prompt.replace('{section_title}', str(section_title)).replace('{document_pages}', content)
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     json_content = extract_json(response)
     return convert_physical_index_to_int(json_content['physical_index'])
