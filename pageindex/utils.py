@@ -40,7 +40,7 @@ def Call_LLM(model, prompt, deep_think = False, chat_history=None):
                                       messages=chat_history.append({"role": "user", "content": prompt}))
     else:
         response: ChatResponse = chat(model=model,
-                                      messages={"role": "user", "content": prompt})
+                                      messages=[{"role": "user", "content": prompt}])
     response_text = response['message']['content']
 
     think_texts = re.findall(r'<think>(.*?)</think>', response_text, flags=re.DOTALL)

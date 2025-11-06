@@ -10,7 +10,7 @@ if __name__ == "__main__":
     parser.add_argument('--pdf_path', type=str, help='Path to the PDF file')
     parser.add_argument('--md_path', type=str, help='Path to the Markdown file')
 
-    parser.add_argument('--model', type=str, default='gpt-4o-2024-11-20', help='Model to use')
+    parser.add_argument('--model', type=str, default='deepseek-r1:1.5b', help='Model to use')
     parser.add_argument('--is_local', type=str, default=True, help='Model to use')
 
     parser.add_argument('--toc-check-pages', type=int, default=20, 
