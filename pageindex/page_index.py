@@ -42,6 +42,8 @@ OR
     "answer": "no"
 }}
 
+IMPORTANT: If your "thinking" text contains double quotes, you MUST escape them as \" to maintain valid JSON format.
+
 Output only the JSON, nothing else:"""
 
     response = await ChatGPT_API_async(model=model, prompt=prompt, is_local=is_local)
@@ -77,6 +79,8 @@ OR
     "thinking": "your reasoning here",
     "start_begin": "no"
 }}
+
+IMPORTANT: If your "thinking" text contains double quotes, you MUST escape them as \" to maintain valid JSON format.
 
 Output only the JSON:"""
 
@@ -139,6 +143,8 @@ OR
     "toc_detected": "no"
 }}
 
+IMPORTANT: If your "thinking" text contains double quotes, you MUST escape them as \" to maintain valid JSON format.
+
 Output only the JSON:"""
 
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
@@ -171,6 +177,8 @@ OR
     "completed": "no"
 }}
 
+IMPORTANT: If your "thinking" text contains double quotes, you MUST escape them as \" to maintain valid JSON format.
+
 Output only the JSON:"""
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
     json_content = extract_json(response)
@@ -200,6 +208,8 @@ OR
     "thinking": "your reasoning here",
     "completed": "no"
 }}
+
+IMPORTANT: If your "thinking" text contains double quotes, you MUST escape them as \" to maintain valid JSON format.
 
 Output only the JSON:"""
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
@@ -268,6 +278,8 @@ OR
     "page_index_given_in_toc": "no"
 }}
 
+IMPORTANT: If your "thinking" text contains double quotes, you MUST escape them as \" to maintain valid JSON format.
+
 Output only the JSON:"""
 
     response = ChatGPT_API(model=model, prompt=prompt, is_local=is_local)
@@ -318,6 +330,7 @@ Important rules:
 2. Keep physical_index in format: "<physical_index_X>"
 3. structure is the hierarchical number (e.g., "1", "1.1", "1.2.1") or null
 4. Output ONLY the JSON array, no extra text
+5. IMPORTANT: If any text in "title" contains double quotes, you MUST escape them as \" to maintain valid JSON format
 
 Table of contents:
 {toc}
@@ -352,6 +365,9 @@ def toc_transformer(toc_content, is_local, model=None):
         ],
     }
     You should transform the full table of contents in one go.
+    
+    IMPORTANT: If any text in "title" contains double quotes, you MUST escape them as \" to maintain valid JSON format.
+    
     Directly return the final JSON structure, do not output anything else. """
 
     prompt = init_prompt + '\n Given table of contents\n:' + toc_content
@@ -540,6 +556,7 @@ Important rules:
 3. Keep the format exactly as "<physical_index_X>"
 4. Do NOT change results from previous parts
 5. Output ONLY the JSON array, no extra text
+6. IMPORTANT: If any text in "title" contains double quotes, you MUST escape them as \" to maintain valid JSON format
 
 Current Partial Document:
 {part}
@@ -604,6 +621,7 @@ Important rules:
 4. Text has tags like <physical_index_5> marking page 5 location
 5. Output ONLY NEW sections found in current text
 6. Output ONLY the JSON array, no extra text
+7. IMPORTANT: If any text in "title" contains double quotes, you MUST escape them as \" to maintain valid JSON format
 
 Output the JSON array now:"""
 
@@ -649,6 +667,7 @@ Important rules:
 4. Text has tags like <physical_index_5> marking page 5 location
 5. Extract ALL sections and subsections in hierarchical order
 6. Output ONLY the JSON array, no extra text before or after
+7. IMPORTANT: If any text in "title" contains double quotes, you MUST escape them as \" to maintain valid JSON format
 
 Output the JSON array now:"""
 
@@ -847,6 +866,7 @@ Output format: You MUST output ONLY a valid JSON object:
 Important:
 - Keep physical_index in format: "<physical_index_X>"
 - Output ONLY the JSON object, no extra text
+- IMPORTANT: If your "thinking" text contains double quotes, you MUST escape them as \" to maintain valid JSON format
 
 Output the JSON now:"""
 
